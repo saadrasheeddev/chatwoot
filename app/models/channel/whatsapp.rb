@@ -92,17 +92,24 @@ class Channel::Whatsapp < ApplicationRecord
   end
 
   # End-to-end voice disablement for a WhatsApp Cloud inbox:
-  # 1. Re-subscribe the WABA webhook with `messages` and `smb_message_echoes`
-  #    only (drop the `calls` field) so call events stop reaching Chatwoot.
-  # 2. Flip the local `calling_enabled` flag off.
+  # 1. Flip the local `calling_enabled` flag off — this is what gates
+  #    Chatwoot's call subsystem (voice_enabled? returns false).
+  # 2. Best-effort: re-subscribe the WABA webhook with `messages` and
+  #    `smb_message_echoes` only so call events stop reaching us. We swallow
+  #    failures here so a Meta outage / expired credentials can't trap admins
+  #    in an enabled state — Chatwoot will already be ignoring inbound calls.
   # We deliberately do NOT toggle calling.status to DISABLED at Meta — admins
   # may want to keep the WABA capability available for other tools / future
   # re-enablement without going through Meta onboarding again.
   def disable_voice_calling!
     raise 'Voice calling is only supported on whatsapp_cloud channels' unless provider == 'whatsapp_cloud'
 
-    webhook_setup_service.register_callback(subscribed_fields: %w[messages smb_message_echoes])
     update!(provider_config: provider_config.merge('calling_enabled' => false))
+    begin
+      webhook_setup_service.register_callback(subscribed_fields: %w[messages smb_message_echoes])
+    rescue StandardError => e
+      Rails.logger.warn "[WHATSAPP CALL] disable webhook re-subscribe failed: #{e.message}"
+    end
   end
 
   def mark_message_templates_updated
