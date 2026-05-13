@@ -74,6 +74,13 @@ export default {
   methods: {
     async fetchWabaCallingStatus() {
       if (this.inbox.provider !== 'whatsapp_cloud') return;
+      // If calling is already on for this inbox, we don't need to round-trip
+      // to Meta to know it's eligible — by definition the prior enable
+      // succeeded against the WABA. Skip the fetch and render the UI.
+      if (this.inbox.provider_config?.calling_enabled) {
+        this.wabaCallingStatus = 'ENABLED';
+        return;
+      }
       this.isFetchingWabaStatus = true;
       try {
         const { data } = await InboxesAPI.getWhatsappCallingStatus(
