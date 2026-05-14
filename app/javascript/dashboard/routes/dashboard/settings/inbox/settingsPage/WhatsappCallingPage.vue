@@ -166,12 +166,21 @@ export default {
     </NextBanner>
 
     <template v-if="isWabaCallingEnabled">
-      <SettingsToggleSection
-        :model-value="callingEnabled"
-        :header="$t('INBOX_MGMT.WHATSAPP_CALLING.ENABLE.LABEL')"
-        :description="$t('INBOX_MGMT.WHATSAPP_CALLING.ENABLE.DESCRIPTION')"
-        @update:model-value="handleCallingToggle"
-      />
+      <div
+        class="relative"
+        :class="{ 'pointer-events-none opacity-60': isTogglingCalling }"
+      >
+        <SettingsToggleSection
+          :model-value="callingEnabled"
+          :header="$t('INBOX_MGMT.WHATSAPP_CALLING.ENABLE.LABEL')"
+          :description="$t('INBOX_MGMT.WHATSAPP_CALLING.ENABLE.DESCRIPTION')"
+          @update:model-value="handleCallingToggle"
+        />
+        <span
+          v-if="isTogglingCalling"
+          class="absolute top-3 right-12 i-lucide-loader-circle animate-spin size-4 text-n-slate-11"
+        />
+      </div>
 
       <SettingsFieldSection
         v-if="phoneNumber"
