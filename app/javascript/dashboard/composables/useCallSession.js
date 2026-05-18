@@ -174,6 +174,15 @@ const buildCallActions = ({ callsStore, whatsappSession, t }) => {
         } else {
           await whatsappSession.rejectIncomingCall(call.callId);
         }
+      } else if (call?.inboxId && call?.conversationId) {
+        // Twilio incoming reject: agent hasn't joined the Device yet, so
+        // endClientCall is a no-op. End the conference server-side instead
+        // so Twilio hangs up the inbound leg.
+        await VoiceAPI.leaveConference({
+          inboxId: call.inboxId,
+          conversationId: call.conversationId,
+          callSid,
+        });
       } else {
         TwilioVoiceClient.endClientCall();
       }

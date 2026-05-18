@@ -54,6 +54,7 @@ function extractCallData(message) {
     status: call.status,
     callDirection: call.direction === 'outgoing' ? 'outbound' : 'inbound',
     conversationId: message?.conversation_id,
+    inboxId: message?.inbox_id ?? message?.conversation?.inbox_id,
     assigneeId: extractAssigneeId(message?.conversation),
     senderId: message?.sender?.id,
   };
@@ -68,6 +69,7 @@ export function handleVoiceCallCreated(message, currentUserId) {
     provider,
     callDirection,
     conversationId,
+    inboxId,
     assigneeId,
     senderId,
   } = extractCallData(message);
@@ -89,6 +91,7 @@ export function handleVoiceCallCreated(message, currentUserId) {
     callId,
     provider,
     conversationId,
+    inboxId,
     callDirection,
     senderId,
   });
@@ -104,6 +107,7 @@ export function handleVoiceCallUpdated(commit, message, currentUserId) {
     status,
     callDirection,
     conversationId,
+    inboxId,
     assigneeId,
     senderId,
   } = extractCallData(message);
@@ -136,6 +140,7 @@ export function handleVoiceCallUpdated(commit, message, currentUserId) {
       callId,
       provider,
       conversationId,
+      inboxId,
       callDirection,
       senderId,
     });
