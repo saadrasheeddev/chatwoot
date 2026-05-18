@@ -99,6 +99,8 @@ export function handleVoiceCallUpdated(commit, message, currentUserId) {
 
   const {
     callSid,
+    callId,
+    provider,
     status,
     callDirection,
     conversationId,
@@ -131,6 +133,8 @@ export function handleVoiceCallUpdated(commit, message, currentUserId) {
   if (status === 'ringing') {
     callsStore.addCall({
       callSid,
+      callId,
+      provider,
       conversationId,
       callDirection,
       senderId,

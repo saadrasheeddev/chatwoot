@@ -14,10 +14,6 @@ import { handleVoiceCallCreated } from 'dashboard/helper/voice';
 import Timer from 'dashboard/helper/Timer';
 
 const isWhatsappCall = call => call?.provider === 'whatsapp';
-// Calls seeded after a refresh / arriving via message.updated may lack provider
-// metadata. Treat anything that has a callId (Meta's wacid) as WhatsApp — the
-// Twilio path keys off provider_call_id (a CA…) and never sets callId.
-const isWhatsappLikeCall = call => isWhatsappCall(call) || !!call?.callId;
 
 // Dismissed call sids must not be re-seeded by the conversation-load watcher.
 // Lives at module scope so all consumers share the same set.
@@ -86,7 +82,7 @@ const buildCallActions = ({ callsStore, whatsappSession, t }) => {
 
   const endCall = async ({ conversationId, inboxId, callSid }) => {
     const call = findCall(callSid);
-    if (isWhatsappLikeCall(call)) {
+    if (isWhatsappCall(call)) {
       // Pass call.callId so a wiped module state (e.g. a prior accept attempt
       // tore down the WebRTC session) doesn't stop us hitting /terminate.
       await whatsappSession.endActiveCall(call?.callId);
@@ -111,13 +107,13 @@ const buildCallActions = ({ callsStore, whatsappSession, t }) => {
     // cleanup() and destroy the live outbound session. Outbound *Twilio*
     // calls still need joinConference + joinClientCall (FloatingCallWidget
     // auto-joins them), so don't short-circuit those.
-    if (call?.callDirection === 'outbound' && isWhatsappLikeCall(call)) {
+    if (call?.callDirection === 'outbound' && isWhatsappCall(call)) {
       return null;
     }
 
     globalIsJoining.value = true;
     try {
-      if (isWhatsappLikeCall(call)) {
+      if (isWhatsappCall(call)) {
         await whatsappSession.acceptIncomingCall({
           callId: call.callId,
           sdpOffer: call.sdpOffer,
@@ -170,7 +166,7 @@ const buildCallActions = ({ callsStore, whatsappSession, t }) => {
   const rejectIncomingCall = async callSid => {
     const call = findCall(callSid);
     try {
-      if (isWhatsappLikeCall(call) && call?.callId) {
+      if (isWhatsappCall(call) && call?.callId) {
         if (call.callDirection === 'outbound') {
           // Outbound calls that are still ringing must be terminated, not
           // rejected (reject is the inbound-side verb on Meta's API).
