@@ -27,6 +27,7 @@ class Api::V1::Accounts::ConferenceController < Api::V1::Accounts::BaseControlle
 
   def destroy
     call = resolve_call!
+    finalize_as_agent_reject!(call) if agent_rejecting_before_pickup?(call)
     Voice::Provider::Twilio::ConferenceService.new(call: call).end_conference
     render json: { status: 'success', id: call.conversation.display_id }
   end
@@ -58,5 +59,21 @@ class Api::V1::Accounts::ConferenceController < Api::V1::Accounts::BaseControlle
 
   def render_call_already_accepted(error)
     render json: { error: error.message }, status: :conflict
+  end
+
+  # Pre-pickup hangup from the agent's UI is a rejection — message bubbles
+  # render this the same way as a WhatsApp agent-decline so the two channels
+  # stay consistent.
+  def agent_rejecting_before_pickup?(call)
+    call.ringing? && call.accepted_by_agent_id.nil?
+  end
+
+  def finalize_as_agent_reject!(call)
+    call.update!(
+      status: 'failed',
+      end_reason: 'agent_rejected',
+      accepted_by_agent_id: Current.user.id
+    )
+    Voice::CallMessageBuilder.new(call).update_status!(status: 'failed', agent: Current.user)
   end
 end

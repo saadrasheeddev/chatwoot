@@ -4,6 +4,11 @@ class Voice::CallStatus::Manager
   def process_status_update(status, duration: nil, timestamp: nil)
     return unless Call::STATUSES.include?(status)
     return if call.status == status
+    # Lock down once terminal — Twilio fires completed for both legs after we mark
+    # an agent-rejected call as failed, and we don't want that overwriting the
+    # explicit rejection reason (which the message bubble uses to render
+    # "Declined by <agent>").
+    return if Call::TERMINAL_STATUSES.include?(call.status)
 
     apply_call_updates!(status, duration: duration, timestamp: timestamp)
     call.conversation.update!(last_activity_at: Time.zone.now)
