@@ -70,10 +70,6 @@ class InboxPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
-  def whatsapp_calling_status?
-    @account_user.administrator?
-  end
-
   def enable_whatsapp_calling?
     @account_user.administrator?
   end

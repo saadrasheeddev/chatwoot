@@ -5,7 +5,6 @@ import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFie
 import SettingsToggleSection from 'dashboard/components-next/Settings/SettingsToggleSection.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import TextArea from 'next/textarea/TextArea.vue';
-import NextBanner from 'dashboard/components-next/banner/Banner.vue';
 
 export default {
   components: {
@@ -13,7 +12,6 @@ export default {
     SettingsToggleSection,
     NextButton,
     TextArea,
-    NextBanner,
   },
   props: {
     inbox: {
@@ -28,8 +26,6 @@ export default {
         this.inbox.provider_config?.call_permission_request_body || '',
       isUpdating: false,
       isTogglingCalling: false,
-      wabaCallingStatus: null,
-      isFetchingWabaStatus: false,
     };
   },
   computed: {
@@ -37,27 +33,6 @@ export default {
       return (
         this.inbox.provider_config?.phone_number || this.inbox.phone_number
       );
-    },
-    isWabaCallingEnabled() {
-      return this.wabaCallingStatus === 'ENABLED';
-    },
-    isWabaCallingDisabled() {
-      return this.wabaCallingStatus && this.wabaCallingStatus !== 'ENABLED';
-    },
-    wabaBannerColor() {
-      return this.wabaCallingStatus === 'UNKNOWN' ? 'amber' : 'ruby';
-    },
-    wabaBannerTitle() {
-      return this.wabaCallingStatus === 'UNKNOWN'
-        ? this.$t('INBOX_MGMT.WHATSAPP_CALLING.WABA_STATUS.UNKNOWN_TITLE')
-        : this.$t('INBOX_MGMT.WHATSAPP_CALLING.WABA_STATUS.DISABLED_TITLE');
-    },
-    wabaBannerDescription() {
-      return this.wabaCallingStatus === 'UNKNOWN'
-        ? this.$t('INBOX_MGMT.WHATSAPP_CALLING.WABA_STATUS.UNKNOWN_DESCRIPTION')
-        : this.$t(
-            'INBOX_MGMT.WHATSAPP_CALLING.WABA_STATUS.DISABLED_DESCRIPTION'
-          );
     },
   },
   watch: {
@@ -68,31 +43,7 @@ export default {
       this.permissionRequestBody = val || '';
     },
   },
-  mounted() {
-    this.fetchWabaCallingStatus();
-  },
   methods: {
-    async fetchWabaCallingStatus() {
-      if (this.inbox.provider !== 'whatsapp_cloud') return;
-      // If calling is already on for this inbox, we don't need to round-trip
-      // to Meta to know it's eligible — by definition the prior enable
-      // succeeded against the WABA. Skip the fetch and render the UI.
-      if (this.inbox.provider_config?.calling_enabled) {
-        this.wabaCallingStatus = 'ENABLED';
-        return;
-      }
-      this.isFetchingWabaStatus = true;
-      try {
-        const { data } = await InboxesAPI.getWhatsappCallingStatus(
-          this.inbox.id
-        );
-        this.wabaCallingStatus = data.status;
-      } catch {
-        this.wabaCallingStatus = 'UNKNOWN';
-      } finally {
-        this.isFetchingWabaStatus = false;
-      }
-    },
     async handleCallingToggle(newValue) {
       if (this.isTogglingCalling) return;
       const previousValue = this.callingEnabled;
@@ -106,12 +57,12 @@ export default {
         }
         await this.$store.dispatch('inboxes/get', this.inbox.id);
         useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
-      } catch (error) {
+      } catch (_) {
         this.callingEnabled = previousValue;
-        const message =
-          error?.response?.data?.message ||
-          this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE');
-        useAlert(message);
+        const fallbackKey = newValue
+          ? 'INBOX_MGMT.WHATSAPP_CALLING.ENABLE_FAILED'
+          : 'INBOX_MGMT.EDIT.API.ERROR_MESSAGE';
+        useAlert(this.$t(fallbackKey));
       } finally {
         this.isTogglingCalling = false;
       }
@@ -147,41 +98,22 @@ export default {
 <template>
   <div class="flex flex-col gap-6">
     <div
-      v-if="isFetchingWabaStatus"
-      class="flex items-center gap-2 text-body-main text-n-slate-11 px-3 py-2 rounded-xl bg-n-slate-3 border border-n-weak"
+      class="relative"
+      :class="{ 'pointer-events-none opacity-60': isTogglingCalling }"
     >
-      <span class="i-lucide-loader-circle animate-spin size-4" />
-      {{ $t('INBOX_MGMT.WHATSAPP_CALLING.WABA_STATUS.LOADING') }}
+      <SettingsToggleSection
+        :model-value="callingEnabled"
+        :header="$t('INBOX_MGMT.WHATSAPP_CALLING.ENABLE.LABEL')"
+        :description="$t('INBOX_MGMT.WHATSAPP_CALLING.ENABLE.DESCRIPTION')"
+        @update:model-value="handleCallingToggle"
+      />
+      <span
+        v-if="isTogglingCalling"
+        class="absolute top-3 right-12 i-lucide-loader-circle animate-spin size-4 text-n-slate-11"
+      />
     </div>
 
-    <NextBanner
-      v-else-if="isWabaCallingDisabled"
-      :color="wabaBannerColor"
-      class="!items-start"
-    >
-      <div class="flex flex-col gap-0.5">
-        <span class="font-medium">{{ wabaBannerTitle }}</span>
-        <span class="text-xs">{{ wabaBannerDescription }}</span>
-      </div>
-    </NextBanner>
-
-    <template v-if="isWabaCallingEnabled">
-      <div
-        class="relative"
-        :class="{ 'pointer-events-none opacity-60': isTogglingCalling }"
-      >
-        <SettingsToggleSection
-          :model-value="callingEnabled"
-          :header="$t('INBOX_MGMT.WHATSAPP_CALLING.ENABLE.LABEL')"
-          :description="$t('INBOX_MGMT.WHATSAPP_CALLING.ENABLE.DESCRIPTION')"
-          @update:model-value="handleCallingToggle"
-        />
-        <span
-          v-if="isTogglingCalling"
-          class="absolute top-3 right-12 i-lucide-loader-circle animate-spin size-4 text-n-slate-11"
-        />
-      </div>
-
+    <template v-if="callingEnabled">
       <SettingsFieldSection
         v-if="phoneNumber"
         :label="$t('INBOX_MGMT.WHATSAPP_CALLING.PHONE_NUMBER.LABEL')"

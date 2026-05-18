@@ -3,17 +3,6 @@ module Enterprise::Api::V1::Accounts::InboxesController
     super + ee_inbox_attributes
   end
 
-  # Surfaces the live WABA-level calling status for a WhatsApp Cloud inbox so
-  # the Calls settings page can show the right state — eligibility for the
-  # WhatsApp Business Calling API is gated by Meta and only revealed here.
-  def whatsapp_calling_status
-    channel = @inbox.channel
-    return render json: { status: 'UNSUPPORTED' }, status: :ok unless channel.is_a?(Channel::Whatsapp) && channel.provider == 'whatsapp_cloud'
-
-    calling = channel.refresh_calling_status!
-    render json: { status: calling&.dig('status') || 'UNKNOWN', calling: calling }
-  end
-
   # Turns voice on for this inbox: enables calling at Meta, subscribes the
   # webhook to call events, and sets calling_enabled in provider_config.
   def enable_whatsapp_calling
