@@ -11,6 +11,8 @@ const {
   redDark,
   violet,
   violetDark,
+  teal,
+  tealDark,
 } = require('@radix-ui/colors');
 
 export const colors = {
